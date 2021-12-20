@@ -227,7 +227,7 @@ class DataFrame(PacketComponent, NamedTuple("DataFrameFields", (
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "DataFrame":
         kwargs = {}
 
-        for n, t in cls._field_types.items():
+        for n, t in cls.__annotations__.items():
             if protocol_version >= cls.MIN_VERSIONS[n]:
                 if isclass(t) and issubclass(t, PacketComponent):
                     kwargs[n] = t.read_from_buffer(buffer, protocol_version)
