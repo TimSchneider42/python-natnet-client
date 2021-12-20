@@ -2,7 +2,7 @@ from typing import NamedTuple, Tuple, Optional
 
 from .data_types import Vec3, Vec4
 from .packet_buffer import PacketBuffer
-from .packet_component import PacketComponent
+from .packet_component import PacketComponent, PacketComponentArray
 from .version import Version
 
 
@@ -20,18 +20,21 @@ class MarkerSetDescription(PacketComponent, NamedTuple(
         return MarkerSetDescription(name, tuple(marker_names))
 
 
-class RigidBodyMarkerDescription(PacketComponent, NamedTuple(
+class RigidBodyMarkerDescription(PacketComponentArray, NamedTuple(
     "RigidBodyMarkerDescriptionFields",
     (("name", Optional[str]),
      ("active_label", int),
      ("pos", Vec3)))):
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "RigidBodyMarkerDescription":
-        name = buffer.read_string() if protocol_version >= Version(4) else None
-        active_label = buffer.read_uint32()
-        pos = buffer.read_float32_array(3)
-        return RigidBodyMarkerDescription(name, active_label, pos)
+    def read_array_from_buffer(cls, buffer: PacketBuffer,
+                               protocol_version: Version) -> "Tuple[RigidBodyMarkerDescription, ...]":
+        marker_count = buffer.read_uint32()
+        pos = [buffer.read_float32_array(3) for _ in range(marker_count)]
+        active_labels = [buffer.read_uint32() for _ in range(marker_count)]
+        names = [buffer.read_string() for _ in range(marker_count)] if protocol_version >= Version(4) else \
+            [None] * marker_count
+        return tuple(RigidBodyMarkerDescription(*a) for a in zip(names, active_labels, pos))
 
 
 class RigidBodyDescription(PacketComponent, NamedTuple(
@@ -53,12 +56,7 @@ class RigidBodyDescription(PacketComponent, NamedTuple(
 
         # Version 3.0 and higher, rigid body marker information contained in description
         if protocol_version >= Version(3):
-            # Marker Count
-            marker_count = buffer.read_uint32()
-
-            marker_descriptions = [
-                RigidBodyMarkerDescription.read_from_buffer(buffer, protocol_version)
-                for _ in range(marker_count)]
+            marker_descriptions = RigidBodyMarkerDescription.read_array_from_buffer(buffer, protocol_version)
         else:
             marker_descriptions = []
 
