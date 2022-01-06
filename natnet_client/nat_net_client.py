@@ -203,12 +203,15 @@ class NatNetClient:
             time.sleep(0.1)
 
     def shutdown(self):
-        assert self.connected
         self.__stop_threads = True
-        self.__command_socket.close()
-        self.__data_socket.close()
-        self.__command_thread.join()
-        self.__data_thread.join()
+        if self.__command_socket is not None:
+            self.__command_socket.close()
+        if self.__data_socket is not None:
+            self.__data_socket.close()
+        if self.__command_thread is not None:
+            self.__command_thread.join()
+        if self.__data_thread is not None:
+            self.__data_thread.join()
         self.__command_socket = self.__command_thread = self.__data_socket = self.__data_thread = self.__server_info \
             = None
 
