@@ -11,6 +11,14 @@ from .packet_buffer import PacketBuffer
 from .version import Version
 
 
+class NatNetError(Exception):
+    pass
+
+
+class NatNetProtocolError(NatNetError):
+    pass
+
+
 class NatNetClient:
     # Client/server message ids
     NAT_CONNECT = 0
@@ -172,35 +180,36 @@ class NatNetClient:
         self.send_request(self.NAT_REQUEST_MODELDEF)
 
     def send_command(self, command_str: str):
-        assert self.connected
+        if not self.connected:
+            raise NatNetError("NatNet client is not connected to a server.")
         return self.send_request(self.NAT_REQUEST, command_str)
 
     def connect(self, timeout: float = 5.0):
-        assert self.__data_socket is None and self.__command_socket is None
-        self.__data_socket = self.__create_data_socket(self.__data_port)
-        self.__command_socket = self.__create_command_socket()
+        if not self.connected:
+            self.__data_socket = self.__create_data_socket(self.__data_port)
+            self.__command_socket = self.__create_command_socket()
 
-        self.__stop_threads = False
-        # Create a separate thread for receiving data packets
-        self.__data_thread = Thread(target=self.__socket_thread_func, args=(self.__data_socket, False))
-        self.__data_thread.start()
+            self.__stop_threads = False
+            # Create a separate thread for receiving data packets
+            self.__data_thread = Thread(target=self.__socket_thread_func, args=(self.__data_socket, False))
+            self.__data_thread.start()
 
-        # Create a separate thread for receiving command packets
-        self.__command_thread = Thread(target=self.__socket_thread_func,
-                                       args=(self.__command_socket, self.__use_multicast),
-                                       kwargs={"send_keep_alive": True})
-        self.__command_thread.start()
+            # Create a separate thread for receiving command packets
+            self.__command_thread = Thread(target=self.__socket_thread_func,
+                                           args=(self.__command_socket, self.__use_multicast),
+                                           kwargs={"send_keep_alive": True})
+            self.__command_thread.start()
 
-        # Get NatNet and server versions
-        self.send_request(self.NAT_CONNECT)
+            # Get NatNet and server versions
+            self.send_request(self.NAT_CONNECT)
 
-        start_time = time.time()
-        while self.__server_info is None:
-            # Waiting for reply from server
-            if (time.time() - start_time) >= timeout:
-                self.shutdown()
-                raise TimeoutError()
-            time.sleep(0.1)
+            start_time = time.time()
+            while self.__server_info is None:
+                # Waiting for reply from server
+                if (time.time() - start_time) >= timeout:
+                    self.shutdown()
+                    raise TimeoutError()
+                time.sleep(0.1)
 
     def shutdown(self):
         self.__stop_threads = True
@@ -247,7 +256,7 @@ class NatNetClient:
     @protocol_version.setter
     def protocol_version(self, desired_version: Version):
         if not self.can_change_protocol_version:
-            raise ValueError("Server does not support changing the NatNet protocol version.")
+            raise NatNetProtocolError("Server does not support changing the NatNet protocol version.")
         desired_version = desired_version.truncate(2)
         if self.can_change_protocol_version and desired_version != self.__current_protocol_version.truncate(2):
             sz_command = "Bitstream,{}".format(desired_version)
@@ -260,7 +269,7 @@ class NatNetClient:
                     self.send_command(cmd)
                 time.sleep(2)
             else:
-                raise ValueError("Failed to set NatNet protocol version")
+                raise NatNetProtocolError("Failed to set NatNet protocol version")
 
     @property
     def server_ip_address(self) -> str:
