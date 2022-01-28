@@ -86,8 +86,6 @@ class NatNetClient:
                 print("Command socket error occurred:\n{}\nCheck Motive/Server mode requested mode agreement. "
                       "You requested Multicast".format(ex))
             result.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # Ensure that thread can terminate
-        result.settimeout(1.0)
         return result
 
     # Create a data socket to attach to the NatNet stream
@@ -117,30 +115,28 @@ class NatNetClient:
                 result.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
                                   socket.inet_aton(self.__multicast_address) + socket.inet_aton(
                                       self.__local_ip_address))
-        # Ensure that thread can terminate
-        result.settimeout(1.0)
         return result
 
-    def __socket_thread_func(self, in_socket: socket.socket, use_multicast: bool = False,
-                             recv_buffer_size: int = 64 * 1024, send_keep_alive: bool = False):
-        data = bytearray(0)
+    def __socket_thread_func(self, in_socket: socket.socket, recv_buffer_size: int = 64 * 1024,
+                             send_keep_alive: bool = False):
         while not self.__stop_threads:
-            # Block for input
-            try:
-                data, addr = in_socket.recvfrom(recv_buffer_size)
-            except socket.timeout:
-                pass
-            except socket.error:
-                if not self.__stop_threads:
-                    raise
+            # Use timeout to ensure that thread can terminate
+            self.__process_socket(in_socket, timeout=0.1, recv_buffer_size=recv_buffer_size,
+                                  send_keep_alive=send_keep_alive)
+
+    def __process_socket(self, in_socket: socket.socket, timeout: float = 0.0, recv_buffer_size: int = 64 * 1024,
+                         send_keep_alive: bool = False):
+        if send_keep_alive:
+            self.send_request(self.NAT_KEEPALIVE)
+        in_socket.settimeout(timeout)
+        try:
+            data, addr = in_socket.recvfrom(recv_buffer_size)
             if len(data) > 0:
                 self.__process_message(PacketBuffer(data))
-                data = bytearray(0)
-
-            if not use_multicast and send_keep_alive:
-                if not self.__stop_threads:
-                    self.send_request(self.NAT_KEEPALIVE)
-        return 0
+                return True
+        except (BlockingIOError, socket.timeout):
+            pass
+        return False
 
     def __process_message(self, buffer: PacketBuffer):
         message_id = buffer.read_uint16()
@@ -189,40 +185,54 @@ class NatNetClient:
             self.__data_socket = self.__create_data_socket(self.__data_port)
             self.__command_socket = self.__create_command_socket()
 
-            self.__stop_threads = False
-            # Create a separate thread for receiving data packets
-            self.__data_thread = Thread(target=self.__socket_thread_func, args=(self.__data_socket, False))
-            self.__data_thread.start()
-
-            # Create a separate thread for receiving command packets
-            self.__command_thread = Thread(target=self.__socket_thread_func,
-                                           args=(self.__command_socket, self.__use_multicast),
-                                           kwargs={"send_keep_alive": True})
-            self.__command_thread.start()
-
             # Get NatNet and server versions
             self.send_request(self.NAT_CONNECT)
 
             start_time = time.time()
             while self.__server_info is None:
                 # Waiting for reply from server
+                self.__process_socket(self.__command_socket, send_keep_alive=not self.__use_multicast)
                 if (time.time() - start_time) >= timeout:
                     self.shutdown()
                     raise TimeoutError()
                 time.sleep(0.1)
 
+    def run_async(self):
+        if not self.running_asynchronously:
+            self.__stop_threads = False
+            # Create a separate thread for receiving data packets
+            self.__data_thread = Thread(target=self.__socket_thread_func, args=(self.__data_socket,))
+            self.__data_thread.start()
+
+            # Create a separate thread for receiving command packets
+            self.__command_thread = Thread(
+                target=self.__socket_thread_func, args=(self.__command_socket,),
+                kwargs={"send_keep_alive": not self.__use_multicast})
+            self.__command_thread.start()
+
+    def stop_async(self):
+        if self.running_asynchronously:
+            self.__stop_threads = True
+            if self.__command_thread is not None:
+                self.__command_thread.join()
+            if self.__data_thread is not None:
+                self.__data_thread.join()
+            self.__command_thread = self.__data_thread = None
+
+    def update_sync(self):
+        assert not self.running_asynchronously, "Cannot update synchronously while running asynchronously."
+        while self.__process_socket(self.__data_socket):
+            pass
+        while self.__process_socket(self.__command_socket, send_keep_alive=not self.__use_multicast):
+            pass
+
     def shutdown(self):
-        self.__stop_threads = True
+        self.stop_async()
         if self.__command_socket is not None:
             self.__command_socket.close()
         if self.__data_socket is not None:
             self.__data_socket.close()
-        if self.__command_thread is not None:
-            self.__command_thread.join()
-        if self.__data_thread is not None:
-            self.__data_thread.join()
-        self.__command_socket = self.__command_thread = self.__data_socket = self.__data_thread = self.__server_info \
-            = None
+        self.__command_socket = self.__data_socket = self.__server_info = None
 
     def __enter__(self):
         self.connect()
@@ -294,3 +304,7 @@ class NatNetClient:
     @property
     def use_multicast(self) -> bool:
         return self.__use_multicast
+
+    @property
+    def running_asynchronously(self):
+        return self.__command_thread is not None or self.__data_thread is not None

@@ -23,4 +23,5 @@ if __name__ == "__main__":
 
         for i in range(10):
             time.sleep(1)
+            streaming_client.update_sync()
             print("Received {} frames in {}s".format(num_frames, i + 1))
