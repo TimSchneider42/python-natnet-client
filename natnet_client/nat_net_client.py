@@ -51,8 +51,8 @@ class NatNetClient:
 
         self.__command_thread = None
         self.__data_thread = None
-        self.__command_socket = None
-        self.__data_socket = None
+        self.__command_socket: Optional[socket.socket] = None
+        self.__data_socket: Optional[socket.socket] = None
 
         self.__stop_threads = False
 
@@ -86,6 +86,7 @@ class NatNetClient:
                 print("Command socket error occurred:\n{}\nCheck Motive/Server mode requested mode agreement. "
                       "You requested Multicast".format(ex))
             result.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        result.settimeout(0.0)
         return result
 
     # Create a data socket to attach to the NatNet stream
@@ -115,20 +116,19 @@ class NatNetClient:
                 result.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
                                   socket.inet_aton(self.__multicast_address) + socket.inet_aton(
                                       self.__local_ip_address))
+        result.settimeout(0.0)
         return result
 
     def __socket_thread_func(self, in_socket: socket.socket, recv_buffer_size: int = 64 * 1024,
                              send_keep_alive: bool = False):
         while not self.__stop_threads:
             # Use timeout to ensure that thread can terminate
-            self.__process_socket(in_socket, timeout=0.1, recv_buffer_size=recv_buffer_size,
-                                  send_keep_alive=send_keep_alive)
+            self.__process_socket(in_socket, recv_buffer_size=recv_buffer_size, send_keep_alive=send_keep_alive)
 
-    def __process_socket(self, in_socket: socket.socket, timeout: float = 0.0, recv_buffer_size: int = 64 * 1024,
+    def __process_socket(self, in_socket: socket.socket, recv_buffer_size: int = 64 * 1024,
                          send_keep_alive: bool = False):
         if send_keep_alive:
             self.send_request(self.NAT_KEEPALIVE)
-        in_socket.settimeout(timeout)
         try:
             data, addr = in_socket.recvfrom(recv_buffer_size)
             if len(data) > 0:
@@ -200,6 +200,11 @@ class NatNetClient:
     def run_async(self):
         if not self.running_asynchronously:
             self.__stop_threads = False
+
+            # To ensure that threads can terminate
+            self.__data_socket.settimeout(0.1)
+            self.__command_socket.settimeout(0.1)
+
             # Create a separate thread for receiving data packets
             self.__data_thread = Thread(target=self.__socket_thread_func, args=(self.__data_socket,))
             self.__data_thread.start()
@@ -218,6 +223,8 @@ class NatNetClient:
             if self.__data_thread is not None:
                 self.__data_thread.join()
             self.__command_thread = self.__data_thread = None
+            self.__data_socket.settimeout(0.0)
+            self.__command_socket.settimeout(0.0)
 
     def update_sync(self):
         assert not self.running_asynchronously, "Cannot update synchronously while running asynchronously."
