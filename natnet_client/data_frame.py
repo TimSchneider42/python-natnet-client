@@ -126,15 +126,27 @@ class LabeledMarker(PacketComponent, NamedTuple("LabeledMarkerFields", (
 
     @property
     def occluded(self):
-        return (self.param & 0x01) != 0
+        return bool(self.param & 0x01)
 
     @property
     def point_cloud_solved(self):
-        return (self.param & 0x02) != 0
+        return bool(self.param & 0x02)
 
     @property
     def model_solved(self):
-        return (self.param & 0x04) != 0
+        return bool(self.param & 0x04)
+
+    @property
+    def has_model(self):
+        return bool(self.param & 0x08)
+
+    @property
+    def unlabeled(self):
+        return bool(self.param & 0x10)
+
+    @property
+    def active(self):
+        return bool(self.param & 0x20)
 
 
 class ForcePlate(PacketComponent, NamedTuple("ForcePlateFields", (
