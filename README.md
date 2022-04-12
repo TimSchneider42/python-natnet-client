@@ -48,7 +48,7 @@ each of its events. The `streaming_client.on_data_description_received_event` ev
 description packet arrives, while the `streaming_client.on_data_frame_received_event` event is triggered on each
 incoming data frame. For the configuration of the NatNet server, please refer to the official documentation.
 
-We then use `streaming_client` instance as a context manager, which is equivalent to
+We then use the `streaming_client` instance as a context manager, which is equivalent to
 calling `streaming_client.connect()` (and `streaming_client.shutdown()` afterwards). After the client has been
 connected, we request the model definitions from the server, which causes it to send a data description packet. Note
 that data frames do not have to be explicitly requested but are continuously streamed once a connection has been
