@@ -51,7 +51,7 @@ incoming data frame. For the configuration of the NatNet server, please refer to
 We then use the `streaming_client` instance as a context manager, which is equivalent to
 calling `streaming_client.connect()` (and `streaming_client.shutdown()` afterwards). After the client has been
 connected, we request the model definitions from the server, which causes it to send a data description packet. Note
-that data frames do not have to be explicitly requested but are continuously streamed once a connection has been
+that data frames do not have to be explicitly requested, but are continuously streamed once a connection has been
 established.
 
 Apart from requesting model definitions, the `NatNetClient` class allows sending arbitrary commands to the NatNet server
