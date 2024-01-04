@@ -15,6 +15,14 @@ class NatNetError(Exception):
     pass
 
 
+class NatNetNetworkError(NatNetError):
+    def __init__(self, socket_name: str, multicast: bool, inner_error: socket.error):
+        super().__init__(
+            f"{socket_name} socket error occurred:\n{inner_error}\nCheck Motive/Server mode requested mode agreement "
+            f"(you requested {'multi' if multicast else 'uni'}cast).")
+        self.inner_error = inner_error
+
+
 class NatNetProtocolError(NatNetError):
     pass
 
@@ -63,60 +71,50 @@ class NatNetClient:
     def connected(self):
         return self.__command_socket is not None and self.__data_socket is not None and self.__server_info is not None
 
-    # Create a command socket to attach to the NatNet stream
+    @staticmethod
+    def __create_socket(addr: str = "", port: int = 0):
+        # Create a command socket to attach to the NatNet stream
+        result = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        # allow multiple clients on same machine to use multicast group address/port
+        result.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            result.bind((addr, port))
+        except:
+            result.close()
+            raise
+        result.settimeout(0.0)
+        return result
+
     def __create_command_socket(self):
         if self.__use_multicast:
-            # Multicast case
-            result = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
-            # allow multiple clients on same machine to use multicast group address/port
-            result.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                result.bind(("", 0))
-            except socket.error as ex:
-                print("Command socket error occurred:\n{}\nCheck Motive/Server mode requested mode agreement. "
-                      "You requested Multicast".format(ex))
+            addr = ""
+        else:
+            addr = self.__local_ip_address
+        try:
+            result = self.__create_socket(addr, 0)
+        except socket.error as ex:
+            raise NatNetNetworkError("Command", self.__use_multicast, ex)
+
+        if self.__use_multicast:
             # set to broadcast mode
             result.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        else:
-            # Unicast case
-            result = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            try:
-                result.bind((self.__local_ip_address, 0))
-            except socket.error as ex:
-                print("Command socket error occurred:\n{}\nCheck Motive/Server mode requested mode agreement. "
-                      "You requested Multicast".format(ex))
-            result.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        result.settimeout(0.0)
         return result
 
     # Create a data socket to attach to the NatNet stream
     def __create_data_socket(self, port):
         if self.__use_multicast:
-            # Multicast case
-            result = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)  # UDP
-            result.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            addr = self.__multicast_address
+        else:
+            addr = ""
+            port = 0
+        try:
+            result = self.__create_socket(addr, port)
+        except socket.error as ex:
+            raise NatNetNetworkError("Data", self.__use_multicast, ex)
+
+        if self.__use_multicast:
             result.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
                               socket.inet_aton(self.__multicast_address) + socket.inet_aton(self.__local_ip_address))
-            try:
-                result.bind((self.__local_ip_address, port))
-            except socket.error as ex:
-                print("Command socket error occurred:\n{}\nCheck Motive/Server mode requested mode agreement. "
-                      "You requested Multicast".format(ex))
-        else:
-            # Unicast case
-            result = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            result.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                result.bind(("", 0))
-            except socket.error as ex:
-                print("Command socket error occurred:\n{}\nCheck Motive/Server mode requested mode agreement. "
-                      "You requested Multicast".format(ex))
-
-            if self.__multicast_address != "255.255.255.255":
-                result.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
-                                  socket.inet_aton(self.__multicast_address) + socket.inet_aton(
-                                      self.__local_ip_address))
-        result.settimeout(0.0)
         return result
 
     def __socket_thread_func(self, in_socket: socket.socket, recv_buffer_size: int = 64 * 1024,
