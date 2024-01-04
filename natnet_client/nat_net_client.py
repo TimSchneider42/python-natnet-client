@@ -189,7 +189,7 @@ class NatNetClient:
             while self.__server_info is None:
                 # Waiting for reply from server
                 self.__process_socket(self.__command_socket, send_keep_alive=not self.__use_multicast)
-                if (time.time() - start_time) >= timeout:
+                if self.__server_info is None and (time.time() - start_time) >= timeout:
                     self.shutdown()
                     raise TimeoutError()
                 time.sleep(0.1)
