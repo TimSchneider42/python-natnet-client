@@ -140,21 +140,20 @@ class NatNetClient:
         message_id = buffer.read_uint16()
         packet_size = buffer.read_uint16()
         if len(buffer.data) - 4 != packet_size:
-            print("Warning: actual packet size ({}) not consistent with packet size in the header ({})".format(
-                len(buffer.data) - 4, packet_size))
-        if message_id == self.NAT_FRAMEOFDATA:
-            data_frame = DataFrame.read_from_buffer(buffer, self.__current_protocol_version)
-            self.__on_data_frame_received_event.call(data_frame)
-
-        elif message_id == self.NAT_MODELDEF:
-            data_descs = DataDescriptions.read_from_buffer(buffer, self.__current_protocol_version)
-            self.__on_data_description_received_event.call(data_descs)
-
-        elif message_id == self.NAT_SERVERINFO:
+            print(f"Warning: actual packet size ({len(buffer.data) - 4}) not consistent with packet size in the "
+                  f"header ({packet_size})")
+        if message_id == self.NAT_SERVERINFO:
             self.__server_info = ServerInfo.read_from_buffer(buffer, self.__current_protocol_version)
             self.__current_protocol_version = self.__server_info.nat_net_protocol_version
-        return message_id
-
+        else:
+            if self.__current_protocol_version is None:
+                print(f"Warning: dropping packet of type {message_id} as server info has not been received yet.")
+            if message_id == self.NAT_FRAMEOFDATA:
+                data_frame = DataFrame.read_from_buffer(buffer, self.__current_protocol_version)
+                self.__on_data_frame_received_event.call(data_frame)
+            elif message_id == self.NAT_MODELDEF:
+                data_descs = DataDescriptions.read_from_buffer(buffer, self.__current_protocol_version)
+                self.__on_data_description_received_event.call(data_descs)
     def send_request(self, command: int, command_str: str = ""):
         if command in [self.NAT_REQUEST_MODELDEF, self.NAT_REQUEST_FRAMEOFDATA, self.NAT_KEEPALIVE]:
             command_str = ""
