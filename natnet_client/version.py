@@ -46,37 +46,37 @@ class Version:
         if isinstance(other, Version):
             return self.__compare(self, other) == 1
         else:
-            raise TypeError("Expected other to have type {}, got {}".format(Version, type(other)))
+            raise TypeError(f"Expected other to have type {Version}, got {type(other)}")
 
     def __ge__(self, other: "Version"):
         if isinstance(other, Version):
             return self.__compare(self, other) in [0, 1]
         else:
-            raise TypeError("Expected other to have type {}, got {}".format(Version, type(other)))
+            raise TypeError(f"Expected other to have type {Version}, got {type(other)}")
 
     def __lt__(self, other: "Version"):
         if isinstance(other, Version):
             return self.__compare(self, other) == -1
         else:
-            raise TypeError("Expected other to have type {}, got {}".format(Version, type(other)))
+            raise TypeError(f"Expected other to have type {Version}, got {type(other)}")
 
     def __le__(self, other: "Version"):
         if isinstance(other, Version):
             return self.__compare(self, other) in [-1, 0]
         else:
-            raise TypeError("Expected other to have type {}, got {}".format(Version, type(other)))
+            raise TypeError(f"Expected other to have type {Version}, got {type(other)}")
 
     def __eq__(self, other: "Version"):
         if isinstance(other, Version):
             return self.__compare(self, other) == 0
         else:
-            raise TypeError("Expected other to have type {}, got {}".format(Version, type(other)))
+            raise TypeError(f"Expected other to have type {Version}, got {type(other)}")
 
     def __ne__(self, other: "Version"):
         if isinstance(other, Version):
             return self.__compare(self, other) != 0
         else:
-            raise TypeError("Expected other to have type {}, got {}".format(Version, type(other)))
+            raise TypeError(f"Expected other to have type {Version}, got {type(other)}")
 
     @property
     def components(self):

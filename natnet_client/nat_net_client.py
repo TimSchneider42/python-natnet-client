@@ -276,7 +276,7 @@ class NatNetClient:
             raise NatNetProtocolError("Server does not support changing the NatNet protocol version.")
         desired_version = desired_version.truncate(2)
         if self.can_change_protocol_version and desired_version != self.__current_protocol_version.truncate(2):
-            sz_command = "Bitstream,{}".format(desired_version)
+            sz_command = f"Bitstream,{desired_version}"
             return_code = self.send_command(sz_command)
             if return_code >= 0:
                 self.__current_protocol_version = desired_version

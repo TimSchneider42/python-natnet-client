@@ -194,6 +194,6 @@ class DataDescriptions(PacketComponent, NamedTuple("DataDescriptions", (
                 unpacked_data = desc_type.read_from_buffer(buffer, protocol_version)
                 data_dict[name].append(unpacked_data)
             else:
-                print("Type: {} unknown. Stopped processing at {}/{} bytes ({}/{}) datasets.".format(
-                    data_type, buffer.pointer, len(buffer.data), i + 1, dataset_count))
+                print(f"Type: {data_type} unknown. Stopped processing at {buffer.pointer}/{len(buffer.data)} bytes "
+                      f"({i + 1}/{dataset_count}) datasets.")
         return DataDescriptions(**data_dict)

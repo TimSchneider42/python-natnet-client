@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
         for i in range(10):
             time.sleep(1)
-            print("Received {} frames in {}s".format(num_frames, i + 1))
+            print(f"Received {num_frames} frames in {i + 1}s")
 ```
 
 In this example, we first instantiate `NatNetClient` with the connection parameters and attach one callback function to
