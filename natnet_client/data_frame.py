@@ -1,5 +1,6 @@
+from dataclasses import dataclass, fields
 from inspect import isclass
-from typing import NamedTuple, Tuple, Optional
+from typing import Tuple, Optional
 
 from .data_types import Vec3, Vec4
 from .packet_buffer import PacketBuffer
@@ -7,17 +8,19 @@ from .packet_component import PacketComponent
 from .version import Version
 
 
-class FramePrefix(PacketComponent, NamedTuple("FramePrefixDataFields", (
-        ("frame_number", int),))):
+@dataclass(frozen=True)
+class FramePrefix(PacketComponent):
+    frame_number: int
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "FramePrefix":
         return FramePrefix(buffer.read_uint32())
 
 
-class MarkerSet(PacketComponent, NamedTuple("MarkerDataFields", (
-        ("model_name", str),
-        ("marker_pos_list", Tuple[Vec3, ...])))):
+@dataclass(frozen=True)
+class MarkerSet(PacketComponent):
+    model_name: str
+    marker_pos_list: Tuple[Vec3, ...]
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "MarkerSet":
@@ -28,19 +31,21 @@ class MarkerSet(PacketComponent, NamedTuple("MarkerDataFields", (
 
 
 # Only used up until version 3.0, where this information has been moved to the description
-RigidBodyMarker = NamedTuple("RigidBodyMarkerFields", (
-    ("pos", Vec3),
-    ("id_num", Optional[int]),
-    ("size", Optional[int])))
+@dataclass(frozen=True)
+class RigidBodyMarker:
+    pos: Vec3
+    id_num: Optional[int]
+    size: Optional[int]
 
 
-class RigidBody(PacketComponent, NamedTuple("RigidBodyFields", (
-        ("id_num", int),
-        ("pos", Vec3),
-        ("rot", Vec4),
-        ("markers", Optional[Tuple[RigidBodyMarker, ...]]),
-        ("tracking_valid", Optional[bool]),
-        ("marker_error", Optional[float])))):
+@dataclass(frozen=True)
+class RigidBody(PacketComponent):
+    id_num: int
+    pos: Vec3
+    rot: Vec4
+    markers: Optional[Tuple[RigidBodyMarker, ...]]
+    tracking_valid: Optional[bool]
+    marker_error: Optional[float]
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "RigidBody":
@@ -76,9 +81,10 @@ class RigidBody(PacketComponent, NamedTuple("RigidBodyFields", (
         return RigidBody(id_num, pos, rot, markers, tracking_valid, marker_error)
 
 
-class Skeleton(PacketComponent, NamedTuple("SkeletonFields", (
-        ("id_num", int),
-        ("rigid_bodies", Tuple[RigidBody, ...])))):
+@dataclass(frozen=True)
+class Skeleton(PacketComponent):
+    id_num: int
+    rigid_bodies: Tuple[RigidBody, ...]
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Skeleton":
@@ -89,12 +95,13 @@ class Skeleton(PacketComponent, NamedTuple("SkeletonFields", (
         return Skeleton(id_num, tuple(rigid_bodies))
 
 
-class LabeledMarker(PacketComponent, NamedTuple("LabeledMarkerFields", (
-        ("id_num", int),
-        ("pos", Vec3),
-        ("size", int),
-        ("param", Optional[int]),
-        ("residual", Optional[float])))):
+@dataclass(frozen=True)
+class LabeledMarker(PacketComponent):
+    id_num: int
+    pos: Vec3
+    size: int
+    param: Optional[int]
+    residual: Optional[float]
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "LabeledMarker":
@@ -149,9 +156,10 @@ class LabeledMarker(PacketComponent, NamedTuple("LabeledMarkerFields", (
         return bool(self.param & 0x20)
 
 
-class ForcePlate(PacketComponent, NamedTuple("ForcePlateFields", (
-        ("id_num", int),
-        ("channel_arrays", Tuple[Tuple[float, ...], ...]),))):
+@dataclass(frozen=True)
+class ForcePlate(PacketComponent):
+    id_num: int
+    channel_arrays: Tuple[Tuple[float, ...], ...]
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "ForcePlate":
@@ -161,9 +169,10 @@ class ForcePlate(PacketComponent, NamedTuple("ForcePlateFields", (
         return ForcePlate(id_num, channel_arrays)
 
 
-class Device(PacketComponent, NamedTuple("DeviceFields", (
-        ("id_num", int),
-        ("channel_arrays", Tuple[Tuple[float, ...], ...])))):
+@dataclass(frozen=True)
+class Device(PacketComponent):
+    id_num: int
+    channel_arrays: Tuple[Tuple[float, ...], ...]
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Device":
@@ -173,16 +182,17 @@ class Device(PacketComponent, NamedTuple("DeviceFields", (
         return Device(id_num, channel_arrays)
 
 
-class FrameSuffix(PacketComponent, NamedTuple("FrameSuffixDataFields", (
-        ("timecode", int),
-        ("timecode_sub", int),
-        ("timestamp", float),
-        ("stamp_camera_mid_exposure", Optional[int]),
-        ("stamp_data_received", Optional[int]),
-        ("stamp_transmit", Optional[int]),
-        ("param", int),
-        ("is_recording", bool),
-        ("tracked_models_changed", bool)))):
+@dataclass(frozen=True)
+class FrameSuffix(PacketComponent):
+    timecode: int
+    timecode_sub: int
+    timestamp: float
+    stamp_camera_mid_exposure: Optional[int]
+    stamp_data_received: Optional[int]
+    stamp_transmit: Optional[int]
+    param: int
+    is_recording: bool
+    tracked_models_changed: bool
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "FrameSuffix":
@@ -213,16 +223,18 @@ class FrameSuffix(PacketComponent, NamedTuple("FrameSuffixDataFields", (
                            stamp_transmit, param, is_recording, tracked_models_changed)
 
 
-class DataFrame(PacketComponent, NamedTuple("DataFrameFields", (
-        ("prefix", FramePrefix),
-        ("marker_sets", Tuple[MarkerSet, ...]),
-        ("unlabeled_marker_pos", Tuple[Vec3, ...]),
-        ("rigid_bodies", Tuple[RigidBody, ...]),
-        ("skeletons", Tuple[Skeleton, ...]),
-        ("labeled_markers", Tuple[LabeledMarker, ...]),
-        ("force_plates", Tuple[ForcePlate, ...]),
-        ("devices", Tuple[Device, ...]),
-        ("suffix", FrameSuffix)))):
+@dataclass(frozen=True)
+class DataFrame(PacketComponent):
+    prefix: FramePrefix
+    marker_sets: Tuple[MarkerSet, ...]
+    unlabeled_marker_pos: Tuple[Vec3, ...]
+    rigid_bodies: Tuple[RigidBody, ...]
+    skeletons: Tuple[Skeleton, ...]
+    labeled_markers: Tuple[LabeledMarker, ...]
+    force_plates: Tuple[ForcePlate, ...]
+    devices: Tuple[Device, ...]
+    suffix: FrameSuffix
+
     MIN_VERSIONS = {
         "prefix": Version(0),
         "marker_sets": Version(0),
@@ -239,20 +251,20 @@ class DataFrame(PacketComponent, NamedTuple("DataFrameFields", (
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "DataFrame":
         kwargs = {}
 
-        for n, t in cls.__annotations__.items():
-            if protocol_version >= cls.MIN_VERSIONS[n]:
-                if isclass(t) and issubclass(t, PacketComponent):
-                    kwargs[n] = t.read_from_buffer(buffer, protocol_version)
+        for field in fields(cls):
+            if protocol_version >= cls.MIN_VERSIONS[field.name]:
+                if isclass(field.type) and issubclass(field.type, PacketComponent):
+                    kwargs[field.name] = field.type.read_from_buffer(buffer, protocol_version)
                 else:
                     # Type is a tuple
                     element_count = buffer.read_uint32()
-                    generic_type = t.__args__[0]
+                    generic_type = field.type.__args__[0]
                     if generic_type == Vec3:
-                        kwargs[n] = tuple(buffer.read_float32_array(3) for _ in range(element_count))
+                        kwargs[field.name] = tuple(buffer.read_float32_array(3) for _ in range(element_count))
                     else:
-                        kwargs[n] = tuple(
+                        kwargs[field.name] = tuple(
                             generic_type.read_from_buffer(buffer, protocol_version) for _ in range(element_count))
             else:
-                kwargs[n] = None
+                kwargs[field.name] = None
 
         return cls(**kwargs)
