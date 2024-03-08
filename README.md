@@ -40,6 +40,7 @@ if __name__ == "__main__":
 
         for i in range(10):
             time.sleep(1)
+            streaming_client.update_sync()
             print(f"Received {num_frames} frames in {i + 1}s")
 ```
 
@@ -47,6 +48,10 @@ In this example, we first instantiate `NatNetClient` with the connection paramet
 each of its events. The `streaming_client.on_data_description_received_event` event is triggered whenever a new data
 description packet arrives, while the `streaming_client.on_data_frame_received_event` event is triggered on each
 incoming data frame. For the configuration of the NatNet server, please refer to the official documentation.
+
+You can process data synchronously, as in this example, by calling `streaming_client.update_sync()` in your run loop.
+Alternatively, you can call `streaming_client.run_async()` once after connecting, which will handle data asynchronously
+in two additional threads.
 
 We then use the `streaming_client` instance as a context manager, which is equivalent to
 calling `streaming_client.connect()` (and `streaming_client.shutdown()` afterwards). After the client has been
