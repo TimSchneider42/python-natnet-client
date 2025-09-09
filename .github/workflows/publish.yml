@@ -1,0 +1,59 @@
+# Adapted from https://github.com/Farama-Foundation/Gymnasium/blob/main/.github/workflows/pypi-publish.yml
+# This workflow will build and publish Python distributions to PyPI.
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  build-wheels:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - uses: actions/setup-python@v5
+
+    - name: Install dependencies
+      run: pipx install build
+
+    - name: Build sdist and wheels
+      run: pyproject-build
+
+    - name: Store wheels
+      uses: actions/upload-artifact@v4
+      with:
+        path: dist
+
+  gh-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          draft: false
+
+  pypi-publish:
+    runs-on: ubuntu-latest
+    needs:
+    - build-wheels
+    permissions:
+      id-token: write
+    steps:
+    - name: Download dists
+      uses: actions/download-artifact@v4
+      with:
+        name: artifact
+        path: dist
+
+    - name: Publish
+      uses: pypa/gh-action-pypi-publish@release/v1
