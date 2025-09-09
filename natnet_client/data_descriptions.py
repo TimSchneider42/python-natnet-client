@@ -241,6 +241,8 @@ class DataDescriptions(PacketComponent, NamedTuple("DataDescriptions", (
         dataset_count = buffer.read_uint32()
         for i in range(0, dataset_count):
             data_type = buffer.read_uint32()
+            if protocol_version >= Version(4, 1):
+                _dataset_size = buffer.read_uint32()
             if data_type in data_desc_types:
                 name, desc_type = data_desc_types[data_type]
                 unpacked_data = desc_type.read_from_buffer(buffer, protocol_version)
@@ -248,4 +250,5 @@ class DataDescriptions(PacketComponent, NamedTuple("DataDescriptions", (
             else:
                 print(f"Type: {data_type} unknown. Stopped processing at {buffer.pointer}/{len(buffer.data)} bytes "
                       f"({i + 1}/{dataset_count}) datasets.")
+                break
         return DataDescriptions(**data_dict)

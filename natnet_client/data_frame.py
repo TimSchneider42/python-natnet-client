@@ -308,6 +308,8 @@ class DataFrame(PacketComponent):
                     # Type is a tuple
                     element_count = buffer.read_uint32()
                     generic_type = field.type.__args__[0]
+                    if protocol_version >= Version(4, 1):
+                        _dataset_size = buffer.read_uint32()
                     if generic_type == Vec3:
                         kwargs[field.name] = tuple(buffer.read_float32_array(3) for _ in range(element_count))
                     else:
