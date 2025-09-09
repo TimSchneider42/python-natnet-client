@@ -17,7 +17,7 @@ The following example highlights the basic usage of this package:
 ```python
 import time
 
-from natnet_client import DataDescriptions, DataFrame, NatNetClient
+from natnet import DataDescriptions, DataFrame, NatNetClient
 
 
 def receive_new_frame(data_frame: DataFrame):

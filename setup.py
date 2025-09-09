@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="natnet-client",
+    name="natnet",
     version="0.1.1",
     author="Tim Schneider",
     author_email="schneider@ias.informatik.tu-darmstadt.de",
@@ -20,6 +20,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    packages=["natnet_client"],
+    packages=["natnet"],
     python_requires=">=3.6",
 )
