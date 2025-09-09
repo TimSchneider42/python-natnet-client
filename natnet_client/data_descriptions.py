@@ -1,6 +1,7 @@
 from typing import NamedTuple, Tuple, Optional
 
 from .data_types import Vec3, Vec4
+from .exceptions import NatNetProtocolError
 from .packet_buffer import PacketBuffer
 from .packet_component import PacketComponent, PacketComponentArray
 from .version import Version
@@ -194,6 +195,7 @@ class DataDescriptions(PacketComponent, NamedTuple("DataDescriptions", (
                 unpacked_data = desc_type.read_from_buffer(buffer, protocol_version)
                 data_dict[name].append(unpacked_data)
             else:
-                print(f"Type: {data_type} unknown. Stopped processing at {buffer.pointer}/{len(buffer.data)} bytes "
-                      f"({i + 1}/{dataset_count}) datasets.")
+                raise NatNetProtocolError(f"Unknown data type {data_type} encountered while parsing data descriptions. "
+                                        f"Stopped processing at {buffer.pointer}/{len(buffer.data)} bytes, "
+                                        f"({i + 1}/{dataset_count}) datasets.")
         return DataDescriptions(**data_dict)
