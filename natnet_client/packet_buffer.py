@@ -4,18 +4,22 @@ from typing import Optional, Union, Tuple, Any
 
 class PacketBuffer:
     def __init__(self, data: bytes):
-        self.__data = memoryview(data)  # Using a memoryview here ensures that slices do not create copies
+        self.__data = memoryview(
+            data
+        )  # Using a memoryview here ensures that slices do not create copies
         self.pointer = 0
 
     @property
     def data(self):
         return self.__data
 
-    def read_string(self, max_length: Optional[int] = None, static_length: bool = False) -> str:
+    def read_string(
+        self, max_length: Optional[int] = None, static_length: bool = False
+    ) -> str:
         if max_length is None:
-            data_slice = self.__data[self.pointer:]
+            data_slice = self.__data[self.pointer :]
         else:
-            data_slice = self.__data[self.pointer:self.pointer + max_length]
+            data_slice = self.__data[self.pointer : self.pointer + max_length]
         str_enc, separator, remainder = bytes(data_slice).partition(b"\0")
         str_dec = str_enc.decode("utf-8")
         if static_length:

@@ -13,7 +13,9 @@ class FramePrefix(PacketComponent):
     frame_number: int
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "FramePrefix":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "FramePrefix":
         return FramePrefix(buffer.read_uint32())
 
 
@@ -23,7 +25,9 @@ class MarkerSet(PacketComponent):
     marker_pos_list: Tuple[Vec3, ...]
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "MarkerSet":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "MarkerSet":
         model_name = buffer.read_string()
         marker_count = buffer.read_uint32()
         marker_pos_list = [buffer.read_float32_array(3) for _ in range(marker_count)]
@@ -48,14 +52,18 @@ class RigidBody(PacketComponent):
     marker_error: Optional[float]
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "RigidBody":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "RigidBody":
         id_num = buffer.read_uint32()
         pos = buffer.read_float32_array(3)
         rot = buffer.read_float32_array(4)
         # RB Marker Data ( Before version 3.0.  After Version 3.0 Marker data is in description )
         if protocol_version < Version(3, 0):
             marker_count = buffer.read_uint32()
-            marker_positions = [buffer.read_float32_array(3) for _ in range(marker_count)]
+            marker_positions = [
+                buffer.read_float32_array(3) for _ in range(marker_count)
+            ]
 
             if protocol_version >= Version(2):
                 marker_ids = [buffer.read_uint32() for _ in range(marker_count)]
@@ -63,7 +71,10 @@ class RigidBody(PacketComponent):
             else:
                 marker_ids = marker_sizes = [None for _ in range(marker_count)]
 
-            markers = [RigidBodyMarker(*f) for f in zip(marker_positions, marker_ids, marker_sizes)]
+            markers = [
+                RigidBodyMarker(*f)
+                for f in zip(marker_positions, marker_ids, marker_sizes)
+            ]
         else:
             markers = None
         if protocol_version >= Version(2):
@@ -87,10 +98,15 @@ class Skeleton(PacketComponent):
     rigid_bodies: Tuple[RigidBody, ...]
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Skeleton":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "Skeleton":
         id_num = buffer.read_uint32()
         rigid_body_count = buffer.read_uint32()
-        rigid_bodies = [RigidBody.read_from_buffer(buffer, protocol_version) for _ in range(rigid_body_count)]
+        rigid_bodies = [
+            RigidBody.read_from_buffer(buffer, protocol_version)
+            for _ in range(rigid_body_count)
+        ]
 
         return Skeleton(id_num, tuple(rigid_bodies))
 
@@ -104,9 +120,16 @@ class AssetMarkerData(PacketComponent):
     residual: float
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Asset":
-        return AssetMarkerData(buffer.read_uint32(), buffer.read_float32_array(3), buffer.read_float32(),
-                               buffer.read_uint16(), buffer.read_float32())
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "Asset":
+        return AssetMarkerData(
+            buffer.read_uint32(),
+            buffer.read_float32_array(3),
+            buffer.read_float32(),
+            buffer.read_uint16(),
+            buffer.read_float32(),
+        )
 
 
 @dataclass(frozen=True)
@@ -118,9 +141,16 @@ class AssetRigidBodyData(PacketComponent):
     param: int
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Asset":
-        return AssetRigidBodyData(buffer.read_uint32(), buffer.read_float32_array(3), buffer.read_float32_array(4),
-                                  buffer.read_float32(), buffer.read_uint16())
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "Asset":
+        return AssetRigidBodyData(
+            buffer.read_uint32(),
+            buffer.read_float32_array(3),
+            buffer.read_float32_array(4),
+            buffer.read_float32(),
+            buffer.read_uint16(),
+        )
 
 
 @dataclass(frozen=True)
@@ -130,14 +160,22 @@ class Asset(PacketComponent):
     markers: Tuple[AssetMarkerData, ...]
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Asset":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "Asset":
         asset_id = buffer.read_uint32()
 
         num_rbs = buffer.read_uint32()
-        rigid_bodies = [AssetRigidBodyData.read_from_buffer(buffer, protocol_version) for _ in range(num_rbs)]
+        rigid_bodies = [
+            AssetRigidBodyData.read_from_buffer(buffer, protocol_version)
+            for _ in range(num_rbs)
+        ]
 
         num_markers = buffer.read_uint32()
-        markers = [AssetMarkerData.read_from_buffer(buffer, protocol_version) for _ in range(num_markers)]
+        markers = [
+            AssetMarkerData.read_from_buffer(buffer, protocol_version)
+            for _ in range(num_markers)
+        ]
 
         return Asset(asset_id, tuple(rigid_bodies), tuple(markers))
 
@@ -151,7 +189,9 @@ class LabeledMarker(PacketComponent):
     residual: Optional[float]
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "LabeledMarker":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "LabeledMarker":
         id_num = buffer.read_uint32()
         pos = buffer.read_float32_array(3)
         size = buffer.read_float32()
@@ -176,7 +216,7 @@ class LabeledMarker(PacketComponent):
 
     @property
     def marker_id(self):
-        return self.id_num & 0x0000ffff
+        return self.id_num & 0x0000FFFF
 
     @property
     def occluded(self):
@@ -209,10 +249,15 @@ class ForcePlate(PacketComponent):
     channel_arrays: Tuple[Tuple[float, ...], ...]
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "ForcePlate":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "ForcePlate":
         id_num = buffer.read_uint32()
         channel_count = buffer.read_uint32()
-        channel_arrays = tuple(buffer.read_float32_array(buffer.read_uint32()) for _ in range(channel_count))
+        channel_arrays = tuple(
+            buffer.read_float32_array(buffer.read_uint32())
+            for _ in range(channel_count)
+        )
         return ForcePlate(id_num, channel_arrays)
 
 
@@ -222,10 +267,15 @@ class Device(PacketComponent):
     channel_arrays: Tuple[Tuple[float, ...], ...]
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Device":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "Device":
         id_num = buffer.read_uint32()
         channel_count = buffer.read_uint32()
-        channel_arrays = tuple(buffer.read_float32_array(buffer.read_uint32()) for _ in range(channel_count))
+        channel_arrays = tuple(
+            buffer.read_float32_array(buffer.read_uint32())
+            for _ in range(channel_count)
+        )
         return Device(id_num, channel_arrays)
 
 
@@ -242,7 +292,9 @@ class FrameSuffix(PacketComponent):
     tracked_models_changed: bool
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "FrameSuffix":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "FrameSuffix":
         # Timecode
         timecode = buffer.read_uint32()
         timecode_sub = buffer.read_uint32()
@@ -266,8 +318,17 @@ class FrameSuffix(PacketComponent):
         is_recording = (param & 0x01) != 0
         tracked_models_changed = (param & 0x02) != 0
 
-        return FrameSuffix(timecode, timecode_sub, timestamp, stamp_camera_mid_exposure, stamp_data_received,
-                           stamp_transmit, param, is_recording, tracked_models_changed)
+        return FrameSuffix(
+            timecode,
+            timecode_sub,
+            timestamp,
+            stamp_camera_mid_exposure,
+            stamp_data_received,
+            stamp_transmit,
+            param,
+            is_recording,
+            tracked_models_changed,
+        )
 
 
 @dataclass(frozen=True)
@@ -293,17 +354,21 @@ class DataFrame(PacketComponent):
         "labeled_markers": Version(2, 3),
         "force_plates": Version(2, 9),
         "devices": Version(2, 11),
-        "suffix": Version(0)
+        "suffix": Version(0),
     }
 
     @classmethod
-    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "DataFrame":
+    def read_from_buffer(
+        cls, buffer: PacketBuffer, protocol_version: Version
+    ) -> "DataFrame":
         kwargs = {}
 
         for field in fields(cls):
             if protocol_version >= cls.MIN_VERSIONS[field.name]:
                 if isclass(field.type) and issubclass(field.type, PacketComponent):
-                    kwargs[field.name] = field.type.read_from_buffer(buffer, protocol_version)
+                    kwargs[field.name] = field.type.read_from_buffer(
+                        buffer, protocol_version
+                    )
                 else:
                     # Type is a tuple
                     element_count = buffer.read_uint32()
@@ -311,10 +376,14 @@ class DataFrame(PacketComponent):
                     if protocol_version >= Version(4, 1):
                         _dataset_size = buffer.read_uint32()
                     if generic_type == Vec3:
-                        kwargs[field.name] = tuple(buffer.read_float32_array(3) for _ in range(element_count))
+                        kwargs[field.name] = tuple(
+                            buffer.read_float32_array(3) for _ in range(element_count)
+                        )
                     else:
                         kwargs[field.name] = tuple(
-                            generic_type.read_from_buffer(buffer, protocol_version) for _ in range(element_count))
+                            generic_type.read_from_buffer(buffer, protocol_version)
+                            for _ in range(element_count)
+                        )
             else:
                 kwargs[field.name] = None
 
