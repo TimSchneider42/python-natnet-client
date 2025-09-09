@@ -250,5 +250,4 @@ class DataDescriptions(PacketComponent, NamedTuple("DataDescriptions", (
             else:
                 print(f"Type: {data_type} unknown. Stopped processing at {buffer.pointer}/{len(buffer.data)} bytes "
                       f"({i + 1}/{dataset_count}) datasets.")
-                break
         return DataDescriptions(**data_dict)
