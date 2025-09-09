@@ -167,13 +167,64 @@ class CameraDescription(PacketComponent, NamedTuple(
         return CameraDescription(name, position, orientation)
 
 
+class MarkerDescription(PacketComponent, NamedTuple(
+    "MarkerDescriptionFields",
+    (("name", str),
+     ("marker_id", int),
+     ("position", Vec3),
+     ("marker_size", float),
+     ("marker_params", int)))):
+
+    @classmethod
+    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "MarkerDescription":
+        name = buffer.read_string()
+        marker_id = buffer.read_uint32()
+        position = buffer.read_float32_array(3)
+        marker_size = buffer.read_float32()
+        marker_params = buffer.read_uint16()
+        
+        return MarkerDescription(name, marker_id, position, marker_size, marker_params)
+
+
+class AssetDescription(PacketComponent, NamedTuple(
+    "AssetDescriptionFields",
+    (("name", str),
+     ("asset_type", int),
+     ("asset_id", int),
+     ("rigid_body_descriptions", Tuple[RigidBodyDescription, ...]),
+     ("marker_descriptions", Tuple[MarkerDescription, ...])))):
+
+    @classmethod
+    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "AssetDescription":
+        name = buffer.read_string()
+        asset_type = buffer.read_uint32()
+        asset_id = buffer.read_uint32()
+
+        num_rbs = buffer.read_uint32()
+        rigid_body_descriptions = [
+            RigidBodyDescription.read_from_buffer(buffer, protocol_version)
+            for _ in range(num_rbs)
+        ]
+
+        num_markers = buffer.read_uint32()
+        marker_descriptions = [
+            MarkerDescription.read_from_buffer(buffer, protocol_version)
+            for _ in range(num_markers)
+        ]
+
+        return AssetDescription(name, asset_type, asset_id, 
+                               tuple(rigid_body_descriptions), 
+                               tuple(marker_descriptions))
+
+
 class DataDescriptions(PacketComponent, NamedTuple("DataDescriptions", (
         ("marker_sets", Tuple[MarkerSetDescription, ...]),
         ("rigid_bodies", Tuple[RigidBodyDescription, ...]),
         ("skeletons", Tuple[SkeletonDescription, ...]),
         ("force_plates", Tuple[ForcePlateDescription, ...]),
         ("devices", Tuple[DeviceDescription, ...]),
-        ("cameras", Tuple[CameraDescription, ...])))):
+        ("cameras", Tuple[CameraDescription, ...]),
+        ("assets", Tuple[AssetDescription, ...])))):
 
     @classmethod
     def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "DataDescriptions":
@@ -183,13 +234,16 @@ class DataDescriptions(PacketComponent, NamedTuple("DataDescriptions", (
             2: ("skeletons", SkeletonDescription),
             3: ("force_plates", ForcePlateDescription),
             4: ("devices", DeviceDescription),
-            5: ("cameras", CameraDescription)
+            5: ("cameras", CameraDescription),
+            6: ("assets", AssetDescription),
         }
         data_dict = {n: [] for i, (n, f) in data_desc_types.items()}
         # # of data sets to process
         dataset_count = buffer.read_uint32()
         for i in range(0, dataset_count):
             data_type = buffer.read_uint32()
+            if protocol_version >= Version(4, 1):
+                _dataset_size = buffer.read_uint32()
             if data_type in data_desc_types:
                 name, desc_type = data_desc_types[data_type]
                 unpacked_data = desc_type.read_from_buffer(buffer, protocol_version)

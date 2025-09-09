@@ -96,6 +96,53 @@ class Skeleton(PacketComponent):
 
 
 @dataclass(frozen=True)
+class AssetMarkerData(PacketComponent):
+    marker_id: int
+    pos: Vec3
+    marker_size: float
+    marker_params: int
+    residual: float
+
+    @classmethod
+    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Asset":
+        return AssetMarkerData(buffer.read_uint32(), buffer.read_float32_array(3), buffer.read_float32(),
+                               buffer.read_uint16(), buffer.read_float32())
+
+
+@dataclass(frozen=True)
+class AssetRigidBodyData(PacketComponent):
+    id_num: int
+    pos: Vec3
+    rot: Vec4
+    mean_error: float
+    param: int
+
+    @classmethod
+    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Asset":
+        return AssetRigidBodyData(buffer.read_uint32(), buffer.read_float32_array(3), buffer.read_float32_array(4),
+                                  buffer.read_float32(), buffer.read_uint16())
+
+
+@dataclass(frozen=True)
+class Asset(PacketComponent):
+    asset_id: int
+    rigid_bodies: Tuple[AssetRigidBodyData, ...]
+    markers: Tuple[AssetMarkerData, ...]
+
+    @classmethod
+    def read_from_buffer(cls, buffer: PacketBuffer, protocol_version: Version) -> "Asset":
+        asset_id = buffer.read_uint32()
+
+        num_rbs = buffer.read_uint32()
+        rigid_bodies = [AssetRigidBodyData.read_from_buffer(buffer, protocol_version) for _ in range(num_rbs)]
+
+        num_markers = buffer.read_uint32()
+        markers = [AssetMarkerData.read_from_buffer(buffer, protocol_version) for _ in range(num_markers)]
+
+        return Asset(asset_id, tuple(rigid_bodies), tuple(markers))
+
+
+@dataclass(frozen=True)
 class LabeledMarker(PacketComponent):
     id_num: int
     pos: Vec3
@@ -230,6 +277,7 @@ class DataFrame(PacketComponent):
     unlabeled_marker_pos: Tuple[Vec3, ...]
     rigid_bodies: Tuple[RigidBody, ...]
     skeletons: Tuple[Skeleton, ...]
+    assets: Tuple[Asset, ...]
     labeled_markers: Tuple[LabeledMarker, ...]
     force_plates: Tuple[ForcePlate, ...]
     devices: Tuple[Device, ...]
@@ -241,6 +289,7 @@ class DataFrame(PacketComponent):
         "unlabeled_marker_pos": Version(0),
         "rigid_bodies": Version(0),
         "skeletons": Version(2, 1),
+        "assets": Version(4, 1),
         "labeled_markers": Version(2, 3),
         "force_plates": Version(2, 9),
         "devices": Version(2, 11),
@@ -259,6 +308,8 @@ class DataFrame(PacketComponent):
                     # Type is a tuple
                     element_count = buffer.read_uint32()
                     generic_type = field.type.__args__[0]
+                    if protocol_version >= Version(4, 1):
+                        _dataset_size = buffer.read_uint32()
                     if generic_type == Vec3:
                         kwargs[field.name] = tuple(buffer.read_float32_array(3) for _ in range(element_count))
                     else:
