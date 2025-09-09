@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "natnet"
+version = "0.1.1"
+description = "Python client for Optitrack NatNet streams."
+readme = "README.md"
+requires-python = ">=3.6"
+license = { text = "MIT" }
+authors = [
+    { name = "Tim Schneider", email = "tim@robot-learning.de" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/TimSchneider42/python-natnet-client"
+"Bug Tracker" = "https://github.com/TimSchneider42/python-natnet-client/issues"
+
+[tool.setuptools]
+packages = ["natnet"]
