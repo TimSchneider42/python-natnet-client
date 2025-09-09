@@ -7,7 +7,7 @@ Python client for Optitrack NatNet streams.
 Install this package via pip:
 
 ```bash
-pip install git+https://github.com/TimSchneider42/python-natnet-client
+pip install natnet
 ```
 
 ## Usage
