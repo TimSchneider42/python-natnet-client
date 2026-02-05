@@ -21,7 +21,7 @@ class PacketBuffer:
         else:
             data_slice = self.__data[self.pointer : self.pointer + max_length]
         str_enc, separator, remainder = bytes(data_slice).partition(b"\0")
-        str_dec = str_enc.decode("utf-8")
+        str_dec = str_enc.decode("utf-8", errors="replace")
         if static_length:
             assert max_length is not None
             self.pointer += max_length

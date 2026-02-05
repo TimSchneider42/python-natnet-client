@@ -141,7 +141,10 @@ class NatNetClient:
         try:
             data, addr = in_socket.recvfrom(recv_buffer_size)
             if len(data) > 0:
-                self.__process_message(PacketBuffer(data))
+                try:
+                    self.__process_message(PacketBuffer(data))
+                except Exception as e:
+                    print(f"Warning: Failed to process packet: {e}")
                 return True
         except (BlockingIOError, socket.timeout):
             pass
