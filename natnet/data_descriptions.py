@@ -59,6 +59,7 @@ class RigidBodyDescription(
             ("id_num", int),
             ("parent_id", int),
             ("pos", Vec3),
+            ("quat", Optional[Vec4]),
             ("markers", Tuple[RigidBodyMarkerDescription, ...]),
         ),
     ),
@@ -75,6 +76,11 @@ class RigidBodyDescription(
         parent_id = buffer.read_uint32()
         pos = buffer.read_float32_array(3)
 
+        # Version 4.2 and higher, rigid body has quaternion
+        quat = (
+            buffer.read_float32_array(4) if protocol_version >= Version(4, 2) else None
+        )
+
         # Version 3.0 and higher, rigid body marker information contained in description
         if protocol_version >= Version(3):
             marker_descriptions = RigidBodyMarkerDescription.read_array_from_buffer(
@@ -84,7 +90,7 @@ class RigidBodyDescription(
             marker_descriptions = []
 
         return RigidBodyDescription(
-            name, new_id, parent_id, pos, tuple(marker_descriptions)
+            name, new_id, parent_id, pos, quat, tuple(marker_descriptions)
         )
 
 
