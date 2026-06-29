@@ -3,7 +3,9 @@ from threading import Thread
 import time
 from typing import Optional
 
+from .clock_sync import ClockSync
 from .data_frame import DataFrame
+from .echo_response import EchoResponse
 from .event import Event
 from .exceptions import NatNetError, NatNetNetworkError, NatNetProtocolError
 from .server_info import ServerInfo
@@ -25,7 +27,11 @@ class NatNetClient:
     NAT_MESSAGESTRING = 8
     NAT_DISCONNECT = 9
     NAT_KEEPALIVE = 10
+    NAT_ECHOREQUEST = 12
+    NAT_ECHORESPONSE = 13
     NAT_UNRECOGNIZED_REQUEST = 100
+
+    ECHO_REQUEST_INTERVAL = 0.5  # seconds between clock-sync echo requests
 
     def __init__(
         self,
@@ -54,6 +60,9 @@ class NatNetClient:
         self.__data_socket: Optional[socket.socket] = None
 
         self.__stop_threads = False
+
+        self.__clock_sync: Optional[ClockSync] = None
+        self.__last_echo_time = 0.0
 
         self.__on_data_frame_received_event = Event()
         self.__on_data_description_received_event = Event()
@@ -138,6 +147,9 @@ class NatNetClient:
     ):
         if send_keep_alive:
             self.send_request(self.NAT_KEEPALIVE)
+
+        if in_socket is self.__command_socket:
+            self.__maybe_send_echo_request()
         try:
             data, addr = in_socket.recvfrom(recv_buffer_size)
             if len(data) > 0:
@@ -162,6 +174,10 @@ class NatNetClient:
             self.__current_protocol_version = (
                 self.__server_info.nat_net_protocol_version
             )
+
+            frequency = self.__server_info.high_res_clock_frequency
+            if frequency:
+                self.__clock_sync = ClockSync(frequency)
         else:
             if self.__current_protocol_version is None:
                 print(
@@ -177,6 +193,17 @@ class NatNetClient:
                     buffer, self.__current_protocol_version
                 )
                 self.__on_data_description_received_event.call(data_descs)
+            elif message_id == self.NAT_ECHORESPONSE:
+                t_recv_ns = time.monotonic_ns()  # stamp before parsing
+                response = EchoResponse.read_from_buffer(
+                    buffer, self.__current_protocol_version
+                )
+                if self.__clock_sync is not None:
+                    self.__clock_sync.add_sample(
+                        response.request_timestamp,
+                        t_recv_ns,
+                        response.server_timestamp,
+                    )
 
     def send_request(self, command: int, command_str: str = ""):
         if command in [
@@ -195,6 +222,24 @@ class NatNetClient:
         data += command_str.encode("utf-8")
         data += b"\0"
 
+        return self.__command_socket.sendto(
+            data, (self.__server_ip_address, self.__command_port)
+        )
+
+    def __maybe_send_echo_request(self):
+        if self.__clock_sync is None:
+            return
+        now = time.monotonic()
+        if now - self.__last_echo_time < self.ECHO_REQUEST_INTERVAL:
+            return
+        self.__last_echo_time = now
+        self.__send_echo_request()
+
+    def __send_echo_request(self):
+        timestamp = time.monotonic_ns()
+        data = self.NAT_ECHOREQUEST.to_bytes(2, byteorder="little")
+        data += (8).to_bytes(2, byteorder="little")
+        data += timestamp.to_bytes(8, byteorder="little")
         return self.__command_socket.sendto(
             data, (self.__server_ip_address, self.__command_port)
         )
@@ -260,9 +305,9 @@ class NatNetClient:
             self.__command_socket.settimeout(0.0)
 
     def update_sync(self):
-        assert (
-            not self.running_asynchronously
-        ), "Cannot update synchronously while running asynchronously."
+        assert not self.running_asynchronously, (
+            "Cannot update synchronously while running asynchronously."
+        )
         while self.__process_socket(self.__data_socket):
             pass
         while self.__process_socket(
@@ -277,6 +322,8 @@ class NatNetClient:
         if self.__data_socket is not None:
             self.__data_socket.close()
         self.__command_socket = self.__data_socket = self.__server_info = None
+        self.__clock_sync = None
+        self.__last_echo_time = 0.0
 
     def __enter__(self):
         self.connect()
@@ -296,6 +343,35 @@ class NatNetClient:
     @property
     def server_info(self) -> Optional[ServerInfo]:
         return self.__server_info
+
+    def seconds_since_host_timestamp(self, host_timestamp: int) -> Optional[float]:
+        """Seconds elapsed on the client clock since the server instant given by
+        ``host_timestamp`` (a server QPC tick, e.g. ``FrameSuffix.stamp_transmit``).
+
+        Mirrors the official SDK's ``SecondsSinceHostTimestamp``. Returns None
+        until at least one echo round trip has completed (not yet synchronized)
+        or if the server has no hi-res clock (protocol < 3.0)."""
+        if self.__clock_sync is None:
+            return None
+        return self.__clock_sync.seconds_since_host_timestamp(host_timestamp)
+
+    @property
+    def clock_synchronized(self) -> bool:
+        return self.__clock_sync is not None and self.__clock_sync.synchronized
+
+    @property
+    def clock_offset(self) -> Optional[float]:
+        """Estimated server-vs-client clock offset in seconds, or None."""
+        if self.__clock_sync is None:
+            return None
+        return self.__clock_sync.offset
+
+    @property
+    def clock_rtt(self) -> Optional[float]:
+        """RTT in seconds of the sample backing the offset estimate, or None."""
+        if self.__clock_sync is None:
+            return None
+        return self.__clock_sync.rtt
 
     @property
     def can_change_protocol_version(self) -> bool:

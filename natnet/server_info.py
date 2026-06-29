@@ -13,8 +13,7 @@ class ServerInfo(
             ("application_name", str),
             ("server_version", Version),
             ("nat_net_protocol_version", Version),
-            # NatNet 3.0+ only (None otherwise). high_res_clock_frequency is the
-            # host counter frequency (ticks/s) for the FrameSuffix hi-res stamps.
+            # NatNet 3.0+ only (None otherwise).
             ("high_res_clock_frequency", Optional[int]),
             ("data_port", Optional[int]),
             ("is_multicast", Optional[bool]),
@@ -22,7 +21,6 @@ class ServerInfo(
         ),
     ),
 ):
-
     @classmethod
     def read_from_buffer(
         cls, buffer: PacketBuffer, protocol_version: Version
@@ -31,8 +29,7 @@ class ServerInfo(
         server_version = Version(*buffer.read("BBBB"))
         nat_net_protocol_version = Version(*buffer.read("BBBB"))
 
-        # Clock and connection info (sSender_Server) are NatNet 3.0+ only.
-        if protocol_version >= Version(3):
+        if nat_net_protocol_version >= Version(3):
             high_res_clock_frequency = buffer.read_uint64()
             data_port = buffer.read_uint16()
             is_multicast = buffer.read("B")[0] != 0

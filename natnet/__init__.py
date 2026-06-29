@@ -1,5 +1,7 @@
+from .clock_sync import ClockSync
 from .data_descriptions import *
 from .data_frame import *
+from .echo_response import EchoResponse
 from .event import Event
 from .exceptions import NatNetError, NatNetNetworkError, NatNetProtocolError
 from .nat_net_client import NatNetClient
