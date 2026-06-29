@@ -280,6 +280,15 @@ class Device(PacketComponent):
 
 
 @dataclass(frozen=True)
+class Latencies:
+    # Seconds. total: mid-exposure -> transmit; system: mid-exposure -> data
+    # received; transmit: data received -> transmit.
+    total: float
+    system: float
+    transmit: float
+
+
+@dataclass(frozen=True)
 class FrameSuffix(PacketComponent):
     timecode: int
     timecode_sub: int
@@ -328,6 +337,26 @@ class FrameSuffix(PacketComponent):
             param,
             is_recording,
             tracked_models_changed,
+        )
+
+    def latencies(self, high_res_clock_frequency: Optional[int]) -> Optional[Latencies]:
+        """Convert the hi-res tick stamps into latencies in seconds using the
+        frequency from ServerInfo. None if the frequency or any stamp is missing
+        (protocol < 3.0)."""
+        if (
+            high_res_clock_frequency is None
+            or self.stamp_camera_mid_exposure is None
+            or self.stamp_data_received is None
+            or self.stamp_transmit is None
+        ):
+            return None
+        return Latencies(
+            total=(self.stamp_transmit - self.stamp_camera_mid_exposure)
+            / high_res_clock_frequency,
+            system=(self.stamp_data_received - self.stamp_camera_mid_exposure)
+            / high_res_clock_frequency,
+            transmit=(self.stamp_transmit - self.stamp_data_received)
+            / high_res_clock_frequency,
         )
 
 
